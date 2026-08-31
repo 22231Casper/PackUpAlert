@@ -24,8 +24,6 @@ const server = Deno.serve((req) => {
         });
     }
 
-    // Do someting to serve the file here
-
     return serveFile(req, path.join("./", pathname));
 });
 
