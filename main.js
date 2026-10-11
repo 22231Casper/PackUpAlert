@@ -1,7 +1,6 @@
 console.log("main.js running at", new Date().toLocaleString());
 
 // load sounds
-
 const soundsToLoad = ["siren.mp3"];
 const sounds = {};
 globalThis.sounds = sounds;
