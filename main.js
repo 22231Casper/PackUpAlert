@@ -89,7 +89,7 @@ function applyRules() {
 // TODO: run this when user changes the rules
 applyRules();
 
-console.log(alerts);
+console.log("alerts:", alerts);
 
 function checkTime() {
     const now = new Date();
