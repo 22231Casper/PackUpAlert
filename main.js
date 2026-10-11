@@ -1,25 +1,41 @@
 console.log("main.js running at", new Date().toLocaleString());
 
-// request notification stuff
+// load sounds
 
-const requestNotificationButton = document.getElementById(
-    "requestNotificationButton",
-);
-requestNotificationButton.onclick = requestNotification;
+const soundsToLoad = ["siren.mp3"];
+const sounds = {};
+globalThis.sounds = sounds;
 
+async function loadSounds(filePaths = soundsToLoad) {
+    return new Promise((resolve) => {
+        for (const filePath of filePaths) {
+            sounds[filePath] = new Audio(`/sounds/${filePath}`);
+        }
+        resolve();
+    });
+}
+
+loadSounds();
+
+// request notification permissions
 async function requestNotification() {
     console.log("requesting notification permissions");
+
     await Notification.requestPermission().then((result) => {
-        console.log("notification request result:", result);
         if (result !== "granted") {
             alert("notification permissions not granted with: " + result);
         }
     });
 }
 
+const requestNotificationButton = document.getElementById(
+    "requestNotificationButton",
+);
+requestNotificationButton.onclick = requestNotification;
+
 await requestNotification();
 
-// alert stuff
+// alert rules
 // TODO: let user customise this
 const rules = [
     {
@@ -65,7 +81,10 @@ const rules = [
     },
 ];
 
+// this means alerts will activate one minute before their set time
 const alertOffsetMinutes = -1;
+
+// translate times (e.g. "15:30") into Date objects
 function translateRawTime(time, offset = alertOffsetMinutes) {
     const split = time.split(":");
     const date = new Date();
@@ -75,45 +94,55 @@ function translateRawTime(time, offset = alertOffsetMinutes) {
     return date;
 }
 
+// alerts object that holds all of the alerts
 const alerts = {};
+globalThis.alerts = alerts;
 
+// apply rules to generate alerts object
 function applyRules() {
     rules.sort((a, b) => a.priority - b.priority);
+
     for (const rule of rules) {
         if (rule.enabled) rule.apply(alerts);
     }
 
-    Object.values(alerts).forEach((alert) => alert.activated = false);
+    // set defaults for alerts
+    for (const alert of Object.values(alerts)) {
+        alert.activated = false;
+        alert.sound = "siren.mp3";
+    }
 }
 
 // TODO: run this when user changes the rules
 applyRules();
 
-console.log("alerts:", alerts);
-
+// check if an alert should be sent right now
 function checkTime() {
     const now = new Date();
-    //console.log("now:", (now.getTime() / 1000).toFixed(0));
     const hours = now.getHours();
     const minutes = now.getMinutes();
+
     for (const alert of Object.values(alerts)) {
-        //console.log("checking alert:", alert);
         if (
             alert.time.getHours() === hours &&
             alert.time.getMinutes() === minutes
         ) {
             if (alert.activated) continue;
             sendAlert(alert);
+            break;
         } else {
             alert.activated = false;
         }
     }
 }
 
+// check every second
+setInterval(checkTime, 1_000);
+
 function sendAlert(alert) {
     console.log("alerting!!!");
     sendNotification();
-    playNotificationSound();
+    playNotificationSound(alert.sound);
     alert.activated = true;
 }
 
@@ -128,30 +157,21 @@ function sendNotification() {
     console.log("created notification:", notification);
 }
 
-function playNotificationSound() {
+function playNotificationSound(soundName) {
+    sounds[soundName].play();
 }
 
-function testAlert() {
-    console.log("sending test alert");
-    sendAlert({});
-}
-
-setInterval(checkTime, 1000);
-
-// testing debug stuff
+// testing buttons
 const sendNotificationButton = document.getElementById(
     "sendNotificationButton",
 );
 sendNotificationButton.onclick = sendNotification;
 
-const testAlertButton = document.getElementById("testAlertButton");
+function testAlert() {
+    console.log("sending test alert");
+    sendAlert({});
+}
+const testAlertButton = document.getElementById(
+    "testAlertButton",
+);
 testAlertButton.onclick = testAlert;
-
-// putting functions in globalThis makes them runnable in the devtools console
-globalThis.logRules = () => {
-    console.log(rules);
-};
-
-globalThis.logAlerts = () => {
-    console.log(alerts);
-};

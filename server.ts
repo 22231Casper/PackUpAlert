@@ -7,6 +7,7 @@ const filesToServe = [
     "index.html",
     "main.css",
     "main.js",
+    "sounds/siren.mp3",
 ].map((x) => "/" + x);
 
 console.log(`starting ${devModeEnabled ? "dev" : "prod"} server...`);
