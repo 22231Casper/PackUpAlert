@@ -27,11 +27,6 @@ async function requestNotification() {
     });
 }
 
-const requestNotificationButton = document.getElementById(
-    "requestNotificationButton",
-);
-requestNotificationButton.onclick = requestNotification;
-
 await requestNotification();
 
 // alert rules
@@ -141,7 +136,8 @@ setInterval(checkTime, 1_000);
 function sendAlert(alert) {
     console.log("alerting!!!");
     sendNotification();
-    playNotificationSound(alert.sound);
+    const soundEnabled = localStorage.getItem("enable-sound") === "true";
+    if (soundEnabled) playAlertSound(alert.sound);
     alert.activated = true;
 }
 
@@ -156,16 +152,45 @@ function sendNotification() {
     console.log("created notification:", notification);
 }
 
-function playNotificationSound(soundName) {
+function playAlertSound(soundName) {
     sounds[soundName].play();
 }
 
-// testing buttons
-const sendNotificationButton = document.getElementById(
-    "sendNotificationButton",
-);
-sendNotificationButton.onclick = sendNotification;
+// enable sound button
+const enableSoundSwitch = document.getElementById("enable-sound");
+enableSoundSwitch.addEventListener("change", (event) => {
+    const checked = event.target.checked;
+    localStorage.setItem("enable-sound", checked);
+});
 
+enableSoundSwitch.checked = localStorage.getItem("enable-sound") === "true";
+
+// next alert display
+const nextAlertDisplay = document.getElementById("next-alert");
+const nextAlertRelativeDisplay = document.getElementById("next-alert-relative");
+
+const rtf = new Intl.RelativeTimeFormat({ numeric: "auto" });
+function updateNextAlertDisplay() {
+    const now = new Date();
+
+    let nextAlert = { time: Infinity };
+    for (const alert of Object.values(alerts)) {
+        if (now < alert.time && alert.time < nextAlert.time) nextAlert = alert;
+    }
+
+    nextAlertDisplay.innerText = nextAlert.time.toLocaleTimeString();
+
+    const relativeMS = nextAlert.time.getTime() - now.getTime();
+    const relativeMinutes = relativeMS / 1000 / 60;
+    const relativeString = rtf.format(relativeMinutes, "minutes");
+
+    nextAlertRelativeDisplay.innerText = relativeString;
+}
+updateNextAlertDisplay();
+
+setInterval(updateNextAlertDisplay, 1000);
+
+// testing buttons
 function testAlert() {
     console.log("sending test alert");
     sendAlert({});
@@ -173,4 +198,3 @@ function testAlert() {
 const testAlertButton = document.getElementById(
     "testAlertButton",
 );
-testAlertButton.onclick = testAlert;
