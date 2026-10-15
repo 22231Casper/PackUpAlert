@@ -3,7 +3,6 @@ console.log("main.js running at", new Date().toLocaleString());
 // load sounds
 const soundsToLoad = ["siren.mp3"];
 const sounds = {};
-globalThis.sounds = sounds;
 
 async function loadSounds(filePaths = soundsToLoad) {
     return new Promise((resolve) => {
@@ -38,12 +37,13 @@ const rules = [
         name: "Basic school",
         apply: (alerts) => {
             Object.assign(alerts, {
+                "Before school": { time: translateRawTime("9:55") },
                 "P1": { time: translateRawTime("10:00") },
                 "P2": { time: translateRawTime("11:00") },
-                "Interval": { time: translateRawTime("11:30") },
+                "Interval": { time: translateRawTime("11:25") },
                 "Form": { time: translateRawTime("11:45") },
                 "P3": { time: translateRawTime("12:45") },
-                "Lunch": { time: translateRawTime("13:30") },
+                "Lunch": { time: translateRawTime("13:25") },
                 "P4": { time: translateRawTime("14:30") },
                 "P5": { time: translateRawTime("15:30") },
             });
@@ -63,7 +63,7 @@ const rules = [
     },
     {
         priority: 2,
-        enabled: false,
+        enabled: true,
         name: "Techtorium",
         apply: (alerts) => {
             if ((new Date()).getDay() === 3) {
@@ -90,10 +90,10 @@ function translateRawTime(time, offset = alertOffsetMinutes) {
 
 // alerts object that holds all of the alerts
 const alerts = {};
-globalThis.alerts = alerts;
 
 // apply rules to generate alerts object
 function applyRules() {
+    // sort rules by priority so higher priority rules get applied on top of lower priority ones
     rules.sort((a, b) => a.priority - b.priority);
 
     for (const rule of rules) {
@@ -121,8 +121,12 @@ function checkTime() {
             alert.time.getHours() === hours &&
             alert.time.getMinutes() === minutes
         ) {
+            // don't send the alert if has already been activated
             if (alert.activated) continue;
+
             sendAlert(alert);
+
+            // break so we don't check any more alerts
             break;
         } else {
             alert.activated = false;
@@ -130,14 +134,19 @@ function checkTime() {
     }
 }
 
-// check every second
+// check time every second
 setInterval(checkTime, 1_000);
 
 function sendAlert(alert) {
     console.log("alerting!!!");
+
     sendNotification();
+
+    // get the sound enabled setting from localStorage
     const soundEnabled = localStorage.getItem("enable-sound") === "true";
     if (soundEnabled) playAlertSound(alert.sound);
+
+    // this flag makes sure the alert doesn't trigger twice
     alert.activated = true;
 }
 
@@ -148,8 +157,6 @@ function sendNotification() {
     notification.onclick = function notificationClick() {
         console.log("notification clicked");
     };
-
-    console.log("created notification:", notification);
 }
 
 function playAlertSound(soundName) {
@@ -159,42 +166,64 @@ function playAlertSound(soundName) {
 // enable sound button
 const enableSoundSwitch = document.getElementById("enable-sound");
 enableSoundSwitch.addEventListener("change", (event) => {
+    // set the stored value to the state of the checkbox
     const checked = event.target.checked;
     localStorage.setItem("enable-sound", checked);
 });
 
+// initialise the switch with the stored value
 enableSoundSwitch.checked = localStorage.getItem("enable-sound") === "true";
 
 // next alert display
 const nextAlertDisplay = document.getElementById("next-alert");
 const nextAlertRelativeDisplay = document.getElementById("next-alert-relative");
 
-const rtf = new Intl.RelativeTimeFormat({ numeric: "auto" });
-function updateNextAlertDisplay() {
+// this object is used to format times to "in 1 minute" and such
+const relativeTimeFormat = new Intl.RelativeTimeFormat({ numeric: "auto" });
+
+function getNextAlert() {
     const now = new Date();
 
-    let nextAlert = { time: Infinity };
+    // this makes any date come before this one (think of it like Infinity)
+    let nextAlert = { time: new Date(10 ** 15) };
+
+    // get the next alert
     for (const alert of Object.values(alerts)) {
         if (now < alert.time && alert.time < nextAlert.time) nextAlert = alert;
     }
 
+    return nextAlert;
+}
+
+function updateNextAlertDisplays() {
+    const nextAlert = getNextAlert();
+
     nextAlertDisplay.innerText = nextAlert.time.toLocaleTimeString();
 
-    const relativeMS = nextAlert.time.getTime() - now.getTime();
-    const relativeMinutes = relativeMS / 1000 / 60;
-    const relativeString = rtf.format(relativeMinutes, "minutes");
+    const now = new Date();
 
-    nextAlertRelativeDisplay.innerText = relativeString;
+    function getRelativeTime() {
+        const relativeMS = nextAlert.time.getTime() - now.getTime();
+        const relativeMinutes = relativeMS / 1000 / 60;
+
+        if (relativeMinutes > 1) {
+            return relativeTimeFormat.format(
+                Math.floor(relativeMinutes),
+                "minutes",
+            );
+        } else {
+            return relativeTimeFormat.format(
+                Math.ceil(relativeMinutes * 60),
+                "seconds",
+            );
+        }
+    }
+
+    const relativeTime = getRelativeTime();
+    nextAlertRelativeDisplay.innerText = relativeTime;
+    document.title = `alert ${relativeTime}`;
 }
-updateNextAlertDisplay();
+updateNextAlertDisplays();
 
-setInterval(updateNextAlertDisplay, 1000);
-
-// testing buttons
-function testAlert() {
-    console.log("sending test alert");
-    sendAlert({});
-}
-const testAlertButton = document.getElementById(
-    "testAlertButton",
-);
+// update the display every second
+setInterval(updateNextAlertDisplays, 1_000);
