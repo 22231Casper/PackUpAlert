@@ -10,7 +10,7 @@ const filesToServe = [
 ].map((x) => "/" + x); // map them to paths
 
 // listen for http requests with Deno
-const server = Deno.serve((req) => {
+Deno.serve((req) => {
     // get the url from the request
     const url = new URL(req.url);
 

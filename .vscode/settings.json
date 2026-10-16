@@ -1,4 +1,4 @@
 {
-    "deno.enable": false,
-    "deno.enablePaths": ["/server.ts"]
+    "deno.enable": true,
+    "deno.enablePaths": ["server.ts", "deno.json", "deno.lock"]
 }
