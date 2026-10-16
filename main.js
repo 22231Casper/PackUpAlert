@@ -198,7 +198,7 @@ function getNextAlert() {
 function updateNextAlertDisplays() {
     const nextAlert = getNextAlert();
 
-    nextAlertDisplay.innerText = nextAlert.time.toLocaleTimeString();
+    nextAlertDisplay.innerText = nextAlert.time.toLocaleTimeString([], {hour: "numeric", minute: "numeric"});
 
     const now = new Date();
 

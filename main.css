@@ -1,15 +1,30 @@
+html {
+    height: 100%;
+}
+
 body {
     background-color: #000;
     color: #fff;
     font-family: sans-serif;
-    font-size: large;
+    font-size: x-large;
+    margin: 0;
+    height: 100%;
+    display: flex;
 }
 
 main {
     max-width: 640px;
-    margin: 0 auto;
+    margin: auto auto;
     display: flex;
     flex-direction: column;
+    text-align: center;
+    gap: 0.5em;
+
+    --bg-color: #444;
+    border-radius: 4em;
+    background-color: var(--bg-color);
+    box-shadow: 0px 0px 6em 9em var(--bg-color);
+    z-index: 4;
 }
 
 button {
@@ -27,3 +42,10 @@ button:hover {
     background-color: #1f49a5;
 }
 
+input, label {
+    cursor: pointer;
+}
+
+#next-alert {
+    font-size: 5em;
+}

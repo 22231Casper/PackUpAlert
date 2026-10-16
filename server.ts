@@ -1,38 +1,35 @@
 import { serveFile } from "@std/http/file-server";
 import * as path from "@std/path";
 
-const devModeEnabled = Deno.args[0] === "dev";
-
+// list of files to serve
 const filesToServe = [
     "index.html",
     "main.css",
     "main.js",
     "sounds/siren.mp3",
-].map((x) => "/" + x);
+].map((x) => "/" + x); // map them to paths
 
-console.log(`starting ${devModeEnabled ? "dev" : "prod"} server...`);
-
+// listen for http requests with Deno
 const server = Deno.serve((req) => {
-    //console.log("got request:", req);
+    // get the url from the request
     const url = new URL(req.url);
-    //console.log("url:", url);
 
+    // get the pathname from the url
     const pathname = getPathName(url.pathname);
 
+    // return a 404 if the file is not found
     if (!filesToServe.includes(pathname)) {
         return new Response(`${pathname} not found`, {
             status: 404,
         });
     }
 
+    // serve the file
     return serveFile(req, path.join("./", pathname));
 });
 
+// map / to index.html so it works
 function getPathName(pathname: string): string {
     if (pathname === "/") return "/index.html";
     return pathname;
 }
-
-console.log("started server");
-await server.finished;
-console.log("server finished");
