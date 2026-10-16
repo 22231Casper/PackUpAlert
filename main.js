@@ -5,28 +5,34 @@ const soundsToLoad = ["siren.mp3"];
 const sounds = {};
 
 async function loadSounds(filePaths = soundsToLoad) {
+    // promises make code asynchronous
     return new Promise((resolve) => {
         for (const filePath of filePaths) {
+            // this fetches the audio file from the server
             sounds[filePath] = new Audio(`/sounds/${filePath}`);
         }
         resolve();
     });
 }
 
-loadSounds();
+loadSounds()
+    .then(() => {
+        console.log("all sounds loaded!");
+    });
 
 // request notification permissions
-async function requestNotification() {
+async function requestNotificationPermissions() {
     console.log("requesting notification permissions");
 
-    await Notification.requestPermission().then((result) => {
-        if (result !== "granted") {
-            alert("notification permissions not granted with: " + result);
-        }
-    });
+    await Notification.requestPermission()
+        .then((result) => {
+            if (result !== "granted") {
+                alert("notification permissions not granted with: " + result);
+            }
+        });
 }
 
-await requestNotification();
+setTimeout(requestNotificationPermissions, 1000);
 
 // alert rules
 // TODO: let user customise this
@@ -37,7 +43,7 @@ const rules = [
         name: "Basic school",
         apply: (alerts) => {
             Object.assign(alerts, {
-                "Before school": { time: translateRawTime("9:55") },
+                "Before school": { time: translateRawTime("8:55") },
                 "P1": { time: translateRawTime("10:00") },
                 "P2": { time: translateRawTime("11:00") },
                 "Interval": { time: translateRawTime("11:25") },
@@ -54,8 +60,10 @@ const rules = [
         enabled: true,
         name: "Wednesday shift",
         apply: (alerts) => {
+            // change the first alerts to match the late start on wednesday
             if ((new Date()).getDay() === 3) {
                 Object.assign(alerts, {
+                    "Before school": { time: translateRawTime("9:25") },
                     "P1": { time: translateRawTime("10:15") },
                 });
             }
@@ -66,6 +74,7 @@ const rules = [
         enabled: true,
         name: "Techtorium",
         apply: (alerts) => {
+            // remove all alerts for wednesday
             if ((new Date()).getDay() === 3) {
                 Object.keys(alerts).forEach((k) => {
                     delete alerts[k];
@@ -106,8 +115,6 @@ function applyRules() {
         alert.sound = "siren.mp3";
     }
 }
-
-// TODO: run this when user changes the rules
 applyRules();
 
 // check if an alert should be sent right now
@@ -150,7 +157,10 @@ function sendAlert(alert) {
     alert.activated = true;
 }
 
-function sendNotification() {
+async function sendNotification() {
+    // make sure the user has granted notification permissions
+    await requestNotificationPermissions();
+
     const notification = new Notification("PACK UP!!!", {
         body: "PACK UP NOW!!!",
     });
@@ -178,34 +188,49 @@ enableSoundSwitch.checked = localStorage.getItem("enable-sound") === "true";
 const nextAlertDisplay = document.getElementById("next-alert");
 const nextAlertRelativeDisplay = document.getElementById("next-alert-relative");
 
-// this object is used to format times to "in 1 minute" and such
+// this object is used to format times to relative time formats
 const relativeTimeFormat = new Intl.RelativeTimeFormat({ numeric: "auto" });
 
 function getNextAlert() {
     const now = new Date();
 
-    // this makes any date come before this one (think of it like Infinity)
-    let nextAlert = { time: new Date(10 ** 15) };
+    // filter all alerts for just the ones after now
+    const alertsAfterNow = Object.values(alerts)
+        .filter((alert) => alert.time > now);
 
-    // get the next alert
-    for (const alert of Object.values(alerts)) {
-        if (now < alert.time && alert.time < nextAlert.time) nextAlert = alert;
+    // check if all of the alerts are done for today
+    if (alertsAfterNow.length === 0) {
+        return null;
     }
 
-    return nextAlert;
+    // sort the alerts and get the first one
+    return alertsAfterNow.sort((a, b) => a.time > b.time ? 1 : -1)[0];
 }
 
 function updateNextAlertDisplays() {
     const nextAlert = getNextAlert();
 
-    nextAlertDisplay.innerText = nextAlert.time.toLocaleTimeString([], {hour: "numeric", minute: "numeric"});
+    if (nextAlert === null) {
+        nextAlertDisplay.innerText = "Never";
+        nextAlertRelativeDisplay.innerText = "No more alerts today";
+        document.title = "No alerts - PackUpAlert";
+        return;
+    }
+
+    // set the next alert display text to be the next alerts time in the HH:MM am/pm format
+    nextAlertDisplay.innerText = nextAlert.time.toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "numeric",
+    });
 
     const now = new Date();
 
+    // transform the next alert time into a format like "in 10 minutes" or "in 30 seconds"
     function getRelativeTime() {
         const relativeMS = nextAlert.time.getTime() - now.getTime();
         const relativeMinutes = relativeMS / 1000 / 60;
 
+        // switch between minutes and seconds
         if (relativeMinutes > 1) {
             return relativeTimeFormat.format(
                 Math.floor(relativeMinutes),
@@ -220,10 +245,13 @@ function updateNextAlertDisplays() {
     }
 
     const relativeTime = getRelativeTime();
+
+    // show the relative time in the displays
     nextAlertRelativeDisplay.innerText = relativeTime;
-    document.title = `alert ${relativeTime}`;
+    document.title = `alert ${relativeTime} - PackUpAlert`;
 }
+// update the displays once on page load
 updateNextAlertDisplays();
 
-// update the display every second
+// then update the displays every second
 setInterval(updateNextAlertDisplays, 1_000);
