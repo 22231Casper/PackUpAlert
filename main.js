@@ -69,19 +69,6 @@ const rules = [
             }
         },
     },
-    {
-        priority: 2,
-        enabled: true,
-        name: "Techtorium",
-        apply: (alerts) => {
-            // remove all alerts for wednesday
-            if ((new Date()).getDay() === 3) {
-                Object.keys(alerts).forEach((k) => {
-                    delete alerts[k];
-                });
-            }
-        },
-    },
 ];
 
 // this means alerts will activate one minute before their set time
