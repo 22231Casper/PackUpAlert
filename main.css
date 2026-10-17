@@ -23,7 +23,8 @@ main {
     gap: 0.5em;
 }
 
-input, label {
+input,
+label {
     cursor: pointer;
 }
 
