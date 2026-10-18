@@ -23,8 +23,7 @@ main {
     gap: 0.5em;
 }
 
-input,
-label {
+#enable-sound-group > :is(input, label) {
     cursor: pointer;
 }
 

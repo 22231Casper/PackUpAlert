@@ -71,15 +71,12 @@ const rules = [
     },
 ];
 
-// this means alerts will activate one minute before their set time
-const alertOffsetMinutes = -1;
-
 // translate times (e.g. "15:30") into Date objects
-function translateRawTime(time, offset = alertOffsetMinutes) {
+function translateRawTime(time) {
     const split = time.split(":");
     const date = new Date();
     date.setHours(Number(split[0]));
-    date.setMinutes(Number(split[1]) + offset);
+    date.setMinutes(Number(split[1]));
     date.setSeconds(0, 0);
     return date;
 }
@@ -88,7 +85,7 @@ function translateRawTime(time, offset = alertOffsetMinutes) {
 const alerts = {};
 
 // apply rules to generate alerts object
-function applyRules() {
+function applyRules(minutesBefore = 1) {
     // sort rules by priority so higher priority rules get applied on top of lower priority ones
     rules.sort((a, b) => a.priority - b.priority);
 
@@ -98,11 +95,20 @@ function applyRules() {
 
     // set defaults for alerts
     for (const alert of Object.values(alerts)) {
+        // nullish coalescing assignment to set default minutesBefore
+        alert.minutesBefore ??= minutesBefore;
+        applyMinutesBefore(alert);
         alert.activated = false;
         alert.sound = "siren.mp3";
     }
 }
 applyRules();
+
+// make the alert happen earlier than the bell
+function applyMinutesBefore(alert) {
+    const msBefore = alert.minutesBefore * 60 * 1_000;
+    alert.time = new Date(alert.time.getTime() - msBefore);
+}
 
 // check if an alert should be sent right now
 function checkTime() {
@@ -242,3 +248,53 @@ updateNextAlertDisplays();
 
 // then update the displays every second
 setInterval(updateNextAlertDisplays, 1_000);
+
+const minutesBeforeInput = document.getElementById("minutes-before-input");
+const min = Number(minutesBeforeInput.min);
+const max = Number(minutesBeforeInput.max);
+
+minutesBeforeInput.addEventListener("input", (event) => {
+    const input = event.target;
+
+    const value = input.value;
+    let minutesBefore = Number(input.value);
+
+    // check if there's a leading zero then trim it
+    if (value[0] === "0") input.value = minutesBefore;
+
+    if (minutesBefore < min) {
+        input.value = min;
+        minutesBefore = min;
+    }
+    if (minutesBefore > max) {
+        input.value = max;
+        minutesBefore = max;
+    }
+
+    // store it persistently
+    localStorage.setItem("minutes-before", minutesBefore);
+    console.log(minutesBefore);
+    applyRules(minutesBefore);
+});
+
+function sanitizeNumber(
+    num,
+    { fallback = 0, min = -Infinity, max = Infinity },
+) {
+    if (num === null) return fallback;
+    const number = Number(num);
+    if (Number.isNaN(number)) return fallback;
+    return Math.min(max, Math.max(min, number));
+}
+
+const defaultMinutesBefore = 5;
+
+const minutesBefore = sanitizeNumber(
+    localStorage.getItem("minutes-before"),
+    { fallback: defaultMinutesBefore, min, max },
+);
+minutesBeforeInput.value = minutesBefore;
+
+applyRules(minutesBefore);
+
+globalThis.alerts = alerts;
